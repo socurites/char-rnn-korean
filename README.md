@@ -1,5 +1,6 @@
 
-# char-rnn
+# char-rnn-korean
+이 프로젝트는 문자 단위의 언어 모델을 훈련/샘플링하기 위해 멀티 레이어 RNN(Recurrent Neural Network)를 구현한 [char-rnn](https://github.com/karpathy/char-rnn)을 한글어를 지원하도록 확장한 코드다.
 
 This code implements **multi-layer Recurrent Neural Network** (RNN, LSTM, and GRU) for training/sampling from character-level language models. In other words the model takes one text file as input and trains a Recurrent Neural Network that learns to predict the next character in a sequence. The RNN can then be used to generate text character by character that will look like the original training data. The context of this code base is described in detail in my [blog post](http://karpathy.github.io/2015/05/21/rnn-effectiveness/).
 
