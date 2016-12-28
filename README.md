@@ -12,12 +12,12 @@ Torch/Lua/신경망을 처음 접한다면, 파이썬/Numpy로 작성했던 [100
 * 모델 체크포인트를 위한 추가적인 지원 기능
 * 미니 배치와 GPU를 사용할 수 있으므로 더 효율적
 
+## 변경사항: torch-rnn
 
-If you are new to Torch/Lua/Neural Nets, it might be helpful to know that this code is really just a slightly more fancy version of this [100-line gist](https://gist.github.com/karpathy/d4dee566867f8291f086) that I wrote in Python/numpy. The code in this repo additionally: allows for multiple layers, uses an LSTM instead of a vanilla RNN, has more supporting code for model checkpointing, and is of course much more efficient since it uses mini-batches and can run on a GPU.
+최근 [Justin Johnson](http://cs.stanford.edu/people/jcjohns/) (@jcjohnson)는 더 멋진/적은/깔끔한/빠른 Torch 코드를 기반으로 char-rnn을 처음부터 다시 구현했다. 이 코드는 [torch-rnn](https://github.com/jcjohnson/torch-rnn)에서 확인할 수 있다. 최적화에는 Adam을 사용하며, RNN/LSTM의 포워드/백워드 과정을 직접 구현하여 메모리/시간 효율성을 높였다. 또한 여기 코드에서 모델을 복사(clone)하는 복잡한 부분을 피할 수 있다. 따라서 char-rnn 구현체가 필요하다면 여기에 구현된 코드보다는 앞으로는 torch-rnn을 기본으로 사용해야 한다.
+> 주) 최근 1년간 이 레파지토리에 변경사항은 없는 상태다. 다음에는 torch-rnn이 한글을 지원하도록 확장하겠다. 코드는 오래되었더라도, 저자의 블로그 글인 [The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)과 함께 이 레파지토리의 코드를 따라해보면 나와 같이 RNN을 처음 접하는 사용자들에게는 꽤 도움이 될 것이다.
 
-## Update: torch-rnn
 
-[Justin Johnson](http://cs.stanford.edu/people/jcjohns/) (@jcjohnson) recently re-implemented char-rnn from scratch with a much nicer/smaller/cleaner/faster Torch code base. It's under the name [torch-rnn](https://github.com/jcjohnson/torch-rnn). It uses Adam for optimization and hard-codes the RNN/LSTM forward/backward passes for space/time efficiency. This also avoids headaches with cloning models in this repo. In other words, torch-rnn should be the default char-rnn implemention to use now instead of the one in this code base.
 
 ## Requirements
 
