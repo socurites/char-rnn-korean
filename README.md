@@ -1,10 +1,17 @@
 
 # char-rnn-korean
-이 프로젝트는 문자 단위의 언어 모델을 훈련/샘플링하기 위해 멀티 레이어 RNN(Recurrent Neural Network)를 구현한 [char-rnn](https://github.com/karpathy/char-rnn)을 한글어를 지원하도록 확장한 코드다.
+이 프로젝트는 문자 단위의 언어 모델을 훈련/샘플링하기 위해 **멀티 레이어 RNN(Recurrent Neural Network)**를 구현한 [char-rnn](https://github.com/karpathy/char-rnn)을 한글어를 지원하도록 확장한 코드다.
 
 Lua에서 문자는 1바이트로 처리되며, 유니코드를 공식적으로 지원하지 않는다. 한글 언어는 유니코드를 사용하여,한 문자당 3바이트를 사용하므로 Lua의 문자열 처리함수를 사용할 수 없다. 이 프로젝트에서는 utf-8 지원 모듈인 [luautf8](https://github.com/starwing/luautf8)을 이용하여 [char-rnn](https://github.com/karpathy/char-rnn)이 한글 및 기타 유니코드 기반 언어에서 동작하도록 확장했다. 아래는 원본을 번역한 내용과 몇가지 주석을 덧붙였다.
 
-This code implements **multi-layer Recurrent Neural Network** (RNN, LSTM, and GRU) for training/sampling from character-level language models. In other words the model takes one text file as input and trains a Recurrent Neural Network that learns to predict the next character in a sequence. The RNN can then be used to generate text character by character that will look like the original training data. The context of this code base is described in detail in my [blog post](http://karpathy.github.io/2015/05/21/rnn-effectiveness/).
+이 코드는 문자 단위의 언어 모델을 훈련/샘플링하기 위해 **멀티 레이어 Recurrent Neural Network** (RNN, LSTM, GRU) 구현한다. 다시 말해 하나의 텍스트 파일을 입력으로 받아 시퀀스의 다음 문자를 예측하도록 RNN을 훈련시킨다. 따라서 학습된 RNN 모델을 사용하면 문자 단위로 원본 훈련 데이터와 유사한 텍스트를 생성할 수 있다. 왜 이 코드를 만들었는지에 대한 내용은 내 블로그의 [The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)에서 확인할 수 있다.
+
+Torch/Lua/신경망을 처음 접한다면, 파이썬/Numpy로 작성했던 [100 라인 gist](https://gist.github.com/karpathy/d4dee566867f8291f086) 코드를 좀 더 멋지게 다듬은 버전이므로 해당 코드를 보면 도움이 될 것이다. 여기 코드에서는 아래와 같은 기능을 더 추가했다.
+* 멀티 레이어 가능
+* 기본 RNN 뿐만 아니라 LSTM을 사용 가능
+* 모델 체크포인트를 위한 추가적인 지원 기능
+* 미니 배치와 GPU를 사용할 수 있으므로 더 효율적
+
 
 If you are new to Torch/Lua/Neural Nets, it might be helpful to know that this code is really just a slightly more fancy version of this [100-line gist](https://gist.github.com/karpathy/d4dee566867f8291f086) that I wrote in Python/numpy. The code in this repo additionally: allows for multiple layers, uses an LSTM instead of a vanilla RNN, has more supporting code for model checkpointing, and is of course much more efficient since it uses mini-batches and can run on a GPU.
 
