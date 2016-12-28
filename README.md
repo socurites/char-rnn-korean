@@ -2,7 +2,19 @@
 # char-rnn-korean
 이 프로젝트는 문자 단위의 언어 모델을 훈련/샘플링하기 위해 **멀티 레이어 RNN(Recurrent Neural Network)**를 구현한 [char-rnn](https://github.com/karpathy/char-rnn)을 한글어를 지원하도록 확장한 코드다.
 
+## 한글 지원
+
 Lua에서 문자는 1바이트로 처리되며, 유니코드를 공식적으로 지원하지 않는다. 한글 언어는 유니코드를 사용하여,한 문자당 3바이트를 사용하므로 Lua의 문자열 처리함수를 사용할 수 없다. 이 프로젝트에서는 utf-8 지원 모듈인 [luautf8](https://github.com/starwing/luautf8)을 이용하여 [char-rnn](https://github.com/karpathy/char-rnn)이 한글 및 기타 유니코드 기반 언어에서 동작하도록 확장했다. 아래는 원본을 번역한 내용과 몇가지 주석을 덧붙였다.
+
+원본 Torch 코드는 그대로 두었으며, 한글어를 지원하도록 변경한 코드에는 파일명에 `kor`를 추가했다. 아래는 변경한 파일 목록이다.
+* util/CharKorSplitLMMinibatchLoader.lua
+...util/CharSplitLMMinibatchLoader.lua 코드에서 데이터셋을 처리하는 부분에 utf-8을 지원하도록 변경
+* train_kor.lua
+...train.lua 훈련 코드에서 CharSplitLMMinibatchLoader 대신 CharKorSplitLMMinibatchLoader을 사용하도록 변경
+* sample_kor.lua
+...sample.lua 샘플링 코드에서 primetext(생성할 텍스트의 앞부분)을 처리하는 코드에서 utf-8을 지원하도록 변경 
+
+## 개요
 
 이 코드는 문자 단위의 언어 모델을 훈련/샘플링하기 위해 **멀티 레이어 Recurrent Neural Network** (RNN, LSTM, GRU) 구현한다. 다시 말해 하나의 텍스트 파일을 입력으로 받아 시퀀스의 다음 문자를 예측하도록 RNN을 훈련시킨다. 따라서 학습된 RNN 모델을 사용하면 문자 단위로 원본 훈련 데이터와 유사한 텍스트를 생성할 수 있다. 왜 이 코드를 만들었는지에 대한 내용은 내 블로그의 [The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)에서 확인할 수 있다.
 
@@ -17,11 +29,9 @@ Torch/Lua/신경망을 처음 접한다면, 파이썬/Numpy로 작성했던 [100
 최근 [Justin Johnson](http://cs.stanford.edu/people/jcjohns/) (@jcjohnson)는 더 멋진/적은/깔끔한/빠른 Torch 코드를 기반으로 char-rnn을 처음부터 다시 구현했다. 이 코드는 [torch-rnn](https://github.com/jcjohnson/torch-rnn)에서 확인할 수 있다. 최적화에는 Adam을 사용하며, RNN/LSTM의 포워드/백워드 과정을 직접 구현하여 메모리/시간 효율성을 높였다. 또한 여기 코드에서 모델을 복사(clone)하는 복잡한 부분을 피할 수 있다. 따라서 char-rnn 구현체가 필요하다면 여기에 구현된 코드보다는 앞으로는 torch-rnn을 기본으로 사용해야 한다.
 > 주) 최근 1년간 이 레파지토리에 변경사항은 없는 상태다. 다음에는 torch-rnn이 한글을 지원하도록 확장하겠다. 코드는 오래되었더라도, 저자의 블로그 글인 [The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)과 함께 이 레파지토리의 코드를 따라해보면 나와 같이 RNN을 처음 접하는 사용자들에게는 꽤 도움이 될 것이다.
 
+## 요구사항
 
-
-## Requirements
-
-This code is written in Lua and requires [Torch](http://torch.ch/). If you're on Ubuntu, installing Torch in your home directory may look something like: 
+이 코드는 Lua를 이용하여 작성했으며 [Torch](http://torch.ch/)를 필요로 한다. 우분투를 사용한다면, 아래와 같이 Torch를 홈 디렉토리에 설치할 수 있다:
 
 ```bash
 $ curl -s https://raw.githubusercontent.com/torch/ezinstall/master/install-deps | bash
@@ -31,7 +41,7 @@ $ ./install.sh      # and enter "yes" at the end to modify your bashrc
 $ source ~/.bashrc
 ```
 
-See the Torch installation documentation for more details. After Torch is installed we need to get a few more packages using [LuaRocks](https://luarocks.org/) (which already came with the Torch install). In particular:
+더 자세한 내용은 Torch 설치 문서를 참고한다. Torch를 설치한 후에는 [LuaRocks](https://luarocks.org/)를 이용하여 몇가지 패키지를 추가로 설치한다(LuaRocks는 앞의 방법으로 Torch를 설치하면 기본으로 설치된다). 아래는 필수적이다.
 
 ```bash
 $ luarocks install nngraph 
@@ -39,31 +49,33 @@ $ luarocks install optim
 $ luarocks install nn
 ```
 
-If you'd like to train on an NVIDIA GPU using CUDA (this can be to about 15x faster), you'll of course need the GPU, and you will have to install the [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit). Then get the `cutorch` and `cunn` packages:
+NVIDIA GPU 기반으로 CUDA를 사용하여 학습하려면(GPU보다 15배 빠르다), 다연히 GPU가 있어야 하며, [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)도 설치해야 한다. 그리고 `cutorch`와 `cunn` 패키지도 설치한다.
 
 ```bash
 $ luarocks install cutorch
 $ luarocks install cunn
 ```
 
-If you'd like to use OpenCL GPU instead (e.g. ATI cards), you will instead need to install the `cltorch` and `clnn` packages, and then use the option `-opencl 1` during training ([cltorch issues](https://github.com/hughperkins/cltorch/issues)):
+또는 OpenCL GPU(ATI 카드 등)를 사용하려면, 대신에 `cltorch`와 `clnn`를 설치해야 하며, 학습시킬 때 `-opencl 1` 옵션을 사용해야 한다 ([cltorch issues](https://github.com/hughperkins/cltorch/issues)).
 
 ```bash
 $ luarocks install cltorch
 $ luarocks install clnn
 ```
 
-## Usage
+## 사용법
 
-### Data
+### 데이터
 
-All input data is stored inside the `data/` directory. You'll notice that there is an example dataset included in the repo (in folder `data/tinyshakespeare`) which consists of a subset of works of Shakespeare. I'm providing a few more datasets on [this page](http://cs.stanford.edu/people/karpathy/char-rnn/).
+입력 데이터는 모두 `data/` 디렉토리에 저장해야 한다. 레파지토리에는 하나의 예제 데이터셋이 포함되어 있는데(`data/tinyshakespeare`에 위치), 세익스피어의 작품 중 일부를 포함하고 있다. 몇가지 추가적인 데이터셋은 [여기](http://cs.stanford.edu/people/karpathy/char-rnn/)에서 제공한다.
 
-**Your own data**: If you'd like to use your own data then create a single file `input.txt` and place it into a folder in the `data/` directory. For example, `data/some_folder/input.txt`. The first time you run the training script it will do some preprocessing and write two more convenience cache files into `data/some_folder`.
+**자신만의 데이터**: 자신만의 데이터를 직접 사용하려면 `input.txt`라는 이름의 단일 파일을 만들어서 `data/` 디렉토리의 폴더 안에 위치시킨다. 예를 들면 `data/some_folder/input.txt`과 같다. 훈련 스크립트를 처음 실행시키는 경우에 입력 데이터에 대해 몇가지 전처리 작업을 거친 후 편의를 위해 2개의 캐시 파일을 `data/some_folder`에 생성한다.
 
-**Dataset sizes**: Note that if your data is too small (1MB is already considered very small) the RNN won't learn very effectively. Remember that it has to learn everything completely from scratch. Conversely if your data is large (more than about 2MB), feel confident to increase `rnn_size` and train a bigger model (see details of training below). It will work *significantly better*. For example with 6MB you can easily go up to `rnn_size` 300 or even more. The biggest that fits on my GPU and that I've trained with this code is `rnn_size` 700 with `num_layers` 3 (2 is default).
+**데이터셋 사이즈**: 데이터 사이즈가 너무 작다면(예를 들어 1MB는 너무 작다), RNN은 효과적으로 학습되지 않는다. RNN은 아무것도 없는 상태에서 모든 것을 학습한다는 사실을 염두에 두어야 한다. 반대로 데이터가 너무 크다면(예를 드러 2MB 이상), 고민하지 말고 `rnn_size`를 높여서 더 큰 모델을 훈련시킨다 (더 자세한 내용은 아래에서 설명한다). 모델은 *상당히 개선*될 것이다. 예를 들어 데이터가 6MB라면 `rnn_size`을 300 또는 그 이상으로 높인다. 나의 GPU에서 이 코드를 이용하여 학습했을 때 `num_layers`가 3인 경우(기본값은 2) 처리할 수 있었던 가장 큰 `rnn_size`는 700이었다.
 
-### Training
+### 훈련
+
+모델을 훈련하려면 `train.lua`를 사용한다.
 
 Start training the model using `train.lua`. As a sanity check, to run on the included example dataset simply try:
 
