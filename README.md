@@ -8,11 +8,11 @@ Lua에서 문자는 1바이트로 처리되며, 유니코드를 공식적으로 
 
 원본 Torch 코드는 그대로 두었으며, 한글어를 지원하도록 변경한 코드에는 파일명에 `kor`를 추가했다. 아래는 변경한 파일 목록이다.
 * util/CharKorSplitLMMinibatchLoader.lua
-** util/CharSplitLMMinibatchLoader.lua 코드에서 데이터셋을 처리하는 부분에 utf-8을 지원하도록 변경
+  * util/CharSplitLMMinibatchLoader.lua 코드에서 데이터셋을 처리하는 부분에 utf-8을 지원하도록 변경
 * train_kor.lua
-** train.lua 훈련 코드에서 CharSplitLMMinibatchLoader 대신 CharKorSplitLMMinibatchLoader을 사용하도록 변경
+  * train.lua 훈련 코드에서 CharSplitLMMinibatchLoader 대신 CharKorSplitLMMinibatchLoader을 사용하도록 변경
 * sample_kor.lua
-** sample.lua 샘플링 코드에서 primetext(생성할 텍스트의 앞부분)을 처리하는 코드에서 utf-8을 지원하도록 변경 
+  * sample.lua 샘플링 코드에서 primetext(생성할 텍스트의 앞부분)을 처리하는 코드에서 utf-8을 지원하도록 변경 
 
 ## 개요
 
