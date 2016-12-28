@@ -12,7 +12,9 @@ Lua에서 문자는 1바이트로 처리되며, 유니코드를 공식적으로 
 * train_kor.lua
   * train.lua 훈련 코드에서 CharSplitLMMinibatchLoader 대신 CharKorSplitLMMinibatchLoader을 사용하도록 변경
 * sample_kor.lua
-  * sample.lua 샘플링 코드에서 primetext(생성할 텍스트의 앞부분)을 처리하는 코드에서 utf-8을 지원하도록 변경 
+  * sample.lua 샘플링 코드에서 primetext(생성할 텍스트의 앞부분)을 처리하는 코드에서 utf-8을 지원하도록 변경
+
+또한 한글 데이터를 학습할 수 있도록 발라드 노래 가사 데이터셋을 **data/lyrics_ballad/input.txt`**에 포함했다.
 
 ## 개요
 
@@ -63,6 +65,14 @@ $ luarocks install cltorch
 $ luarocks install clnn
 ```
 
+### 한글 지원
+
+`한글(utf-8)`을 지원하기 위해 [luautf8](https://github.com/starwing/luautf8) 패키지를 추가로 설치한다.
+
+```bash
+$ luarocks install luautf8
+```
+
 ## 사용법
 
 ### 데이터
@@ -75,89 +85,89 @@ $ luarocks install clnn
 
 ### 훈련
 
-모델을 훈련하려면 `train.lua`를 사용한다.
-
-Start training the model using `train.lua`. As a sanity check, to run on the included example dataset simply try:
+모델을 훈련하려면 `train_kor.lua`를 사용한다. 제대로 설치되었는지 확인하기 위해, 예제 데이터셋을 이용하여 훈련하도록 아래를 실행해본다:
 
 ```
-$ th train.lua -gpuid -1
+$ th train_kor.lua -gpuid -1
 ```
 
-Notice that here we are setting the flag `gpuid` to -1, which tells the code to train using CPU, otherwise it defaults to GPU 0.  There are many other flags for various options. Consult `$ th train.lua -help` for comprehensive settings. Here's another example that trains a bigger network and also shows how you can run on your own custom dataset (this already assumes that `data/some_folder/input.txt` exists):
+보다시피 여기에서는 `gpuid` 플래그를 -1로 설정했ㄴ느데, 이는 CPU를 사용하여 훈련하도록 만든다. 기본값인 GPU이며 0이다. 다양한 옵션을 지원하기 위해 많은 플래그가 있다. 이들 설정을 모두 확인하려면 `$ th train_kor.lua -help`을 실행한다. 예를 들어 아래의 경우에는 더 큰 네트워크를 학습하며, 자신만의 커스텀 데이터를 사용하는 방법을 설명한다(이 경우 데이터셋이 `data/some_folder/input.txt`에 위치해야 한다):
 
 ```
-$ th train.lua -data_dir data/some_folder -rnn_size 512 -num_layers 2 -dropout 0.5
+$ th train_kor.lua -data_dir data/some_folder -rnn_size 512 -num_layers 2 -dropout 0.5
 ```
 
-**Checkpoints.** While the model is training it will periodically write checkpoint files to the `cv` folder. The frequency with which these checkpoints are written is controlled with number of iterations, as specified with the `eval_val_every` option (e.g. if this is 1 then a checkpoint is written every iteration). The filename of these checkpoints contains a very important number: the **loss**. For example, a checkpoint with filename `lm_lstm_epoch0.95_2.0681.t7` indicates that at this point the model was on epoch 0.95 (i.e. it has almost done one full pass over the training data), and the loss on validation data was 2.0681. This number is very important because the lower it is, the better the checkpoint works. Once you start to generate data (discussed below), you will want to use the model checkpoint that reports the lowest validation loss. Notice that this might not necessarily be the last checkpoint at the end of training (due to possible overfitting).
+**체크포인트.** 모델이 학습되는 도중에 주기적으로 체크포인트 파일을 `cv` 디렉토리에 생성한다. 이들 체크포인트가 생성되는 주기는 이터페이션 숫자에 따라 정해지며, `eval_val_every` 옵션으로 설정할 수 있다 (예를 들어 이 설정값이 1이라면, 체크포인트는 매 이터레이션마다 생성된다). 체크포인트 파일명에는 중요한 숫자값인 **loss**가 포함된다. 예를 들어 체크포인트 파일명이 `lm_lstm_epoch0.95_2.0681.t7`라면, 이 시점에서 모델은 0.95 에폭이었고(즉 훈련셋에 대해 첫 에폭이 거의 다 진행된 상태), 평가 데이터셋에 대한 손실은 2.0681이었다라는 점을 말해준다. 이 값은 매우 중요한데, 체크포인트 파일명의 손실값이 적을수록 더 제대로 동작하는 모델이기 때문이다. 텍스트를 생성해야 할 때(아래에서 설명한다), 평가 손실 값이 적은 체크포인트 모델을 사용하는 것이 좋다. 주의할 점은 훈련 단계의 마지막 체크포인트가 항상 가장 적은 손실값을 가지는 것은 아니라는 점이다(과적합이 발생하므로).
 
-Another important quantities to be aware of are `batch_size` (call it B), `seq_length` (call it S), and the `train_frac` and `val_frac` settings. The batch size specifies how many streams of data are processed in parallel at one time. The sequence length specifies the length of each stream, which is also the limit at which the gradients can propagate backwards in time. For example, if `seq_length` is 20, then the gradient signal will never backpropagate more than 20 time steps, and the model might not *find* dependencies longer than this length in number of characters. Thus, if you have a very difficult dataset where there are a lot of long-term dependencies you will want to increase this setting. Now, if at runtime your input text file has N characters, these first all get split into chunks of size `BxS`. These chunks then get allocated across three splits: train/val/test according to the `frac` settings. By default `train_frac` is 0.95 and `val_frac` is 0.05, which means that 95% of our data chunks will be trained on and 5% of the chunks will be used to estimate the validation loss (and hence the generalization). If your data is small, it's possible that with the default settings you'll only have very few chunks in total (for example 100). This is bad: In these cases you may want to decrease batch size or sequence length.
+중요한 또 다른 설정은 `batch_size` (B라고 부르자), `seq_length` (S라고 부르자), `train_frac` and `val_frac`이다. `batch_size`는 병렬로 한꺼번에 처리할 데이터 스트립의 개수다. `seq_length`는 각 데이터 스트림의 길이로, 그래디언트가 시간축에 대해 back propagation할 수 있는 범위를 한정한다. 예를 들어 `seq_length`가 20이라면, 그래디언트 시그널은 시간축으로 20 단계를 초과하여 back propagation하지 않는다. 그리고 문자들의 길이가 이 크기를 벗어나면 모델은 문자간의 의존성을 **발견**하지 못한다. 따라서 데이터셋이 복잡하여 단어간의 의존성이 긴 길이이 걸쳐 있는 경우라면, `seq_length` 설정값을 높여야 한다. 이제 예를 들어 실행 단계에서 입력 텍스트 파일에 N개의 문자가 있다고 하면, 이들은 모두 `BxS` 크기의 청크들로 분할된다. 이어서 이들 청크는 `frac` 설정에 따라 3개의 split train/al/test에 각각 할당된다. 기본값은 `train_frac`의 경우 0.95, `val_frac`은 0.05이다. 즉 입력 데이터셋의 청크 중 96%는 훈련 과정에서, 5%는 평가 손실을 추정할 때 사용한다. 데이터가 작은 경우 이들 기본값을 그대로 사용하면 너무 적은 수의 청크가 생성된다(예를 들어 100개 정도). 이는 좋은 상태가 아니다. 데이터가 적다면, `batch_size`와 `seq_length`를 줄이는 편이 좋다.
 
-Note that you can also initialize parameters from a previously saved checkpoint using `init_from`.
+`init_from` 설정을 통해, 이전에 저장한 체크포인트 파일을 이용하여 파라미터를 초기화할 수도 있다.
 
-### Sampling
+### 샘플링
 
-Given a checkpoint file (such as those written to `cv`) we can generate new text. For example:
+체크포인트 파일을 이용하면(`cv` 디렉토리에 생성된), 새로운 텍스트를 생성할 수 있다. 예를 들어:
 
 ```
-$ th sample.lua cv/some_checkpoint.t7 -gpuid -1
+$ th sample_kor.lua cv/some_checkpoint.t7 -gpuid -1
 ```
 
-Make sure that if your checkpoint was trained with GPU it is also sampled from with GPU, or vice versa. Otherwise the code will (currently) complain. As with the train script, see `$ th sample.lua -help` for full options. One important one is (for example) `-length 10000` which would generate 10,000 characters (default = 2000).
+체크포인트가 GPU를 이용하여 학습되었다면, 반드시 GPU를 이용하여 샘플링해야 하며, CPU도 마찬가지다. 그렇지 않은 경우 코드는 (현재) 경고를 출력한다. 훈련 스크립트와 마찬가지로, `$ th sample.lua -help`을 입력하면 전체 옵션을 확인할 수 있다. 이 중 중요한 옵션은(예를 들어) `-length 10000`인데, 이 경우 10,000문자 길이의 텍스트를 생성한다(기본값은 2000이다).
 
-**Temperature**. An important parameter you may want to play with is `-temperature`, which takes a number in range \(0, 1\] (0 not included), default = 1. The temperature is dividing the predicted log probabilities before the Softmax, so lower temperature will cause the model to make more likely, but also more boring and conservative predictions. Higher temperatures cause the model to take more chances and increase diversity of results, but at a cost of more mistakes.
+**Temperature**. 가지고 놀만한 중요한 파라미터는 `-temperature`로, \(0, 1\](0 제외) 사이의 숫자값이며, 기본값은 1이다. Softmax 전에 예측된 로그 확률값을 temperature로 나눈다. 따라서 temperature가 작을수록 모델은 그럴법한 텍스트를 생성하지만, 예측된 결과는 다소 지루하고 보수적이다. temperature가 높다면 더 많은 우연을 포함하며 결과가 더 다양해지지만, 오류가 더 많이 포함된다.
 
-**Priming**. It's also possible to prime the model with some starting text using `-primetext`. This starts out the RNN with some hardcoded characters to *warm* it up with some context before it starts generating text. E.g. a fun primetext might be `-primetext "the meaning of life is "`. 
+**Priming**. 모델에 사전 지식을 주는 것도 가능한데, `-primetext` 옵션을 사용하여 시작 텍스트를 설정할 수 있다. primtext는 직접 입력한 문자열을 이용하여 텍스트를 생성하기 전에, RNN이 특정 문맥에서 **준비**를 시작하도록 한다. 예를 들어 재미있는 primetext는 `-primetext "the meaning of life is "`이다.
+> 주) 한글 데이터셋인 발라드 가사의 경우 `-primetext "사랑이 "`다.
 
-**Training with GPU but sampling on CPU**. Right now the solution is to use the `convert_gpu_cpu_checkpoint.lua` script to convert your GPU checkpoint to a CPU checkpoint. In near future you will not have to do this explicitly. E.g.:
+**GPU로 훈련 후 CPU로 sampling**. 현재로써 해결방법은 `convert_gpu_cpu_checkpoint.lua` 스크립트를 사용하여 GPU 체크포인트를 CPU 체크포인트로 변환하는 것이다. 앞으로는 이러한 변환을 명시적으로 하지 않아도 되도록 수정할 예정이다. 예들 들어:
 
 ```
 $ th convert_gpu_cpu_checkpoint.lua cv/lm_lstm_epoch30.00_1.3950.t7
 ```
 
-will create a new file `cv/lm_lstm_epoch30.00_1.3950.t7_cpu.t7` that you can use with the sample script and with `-gpuid -1` for CPU mode.
+는 새로운 `cv/lm_lstm_epoch30.00_1.3950.t7_cpu.t7` 파일을 생성하며, `-gpuid -1`를 통해 CPU 모드에서 샘플링 스크립트를 사용할 수 있다.
 
-Happy sampling!
+샘플링을 즐겨보시길!
 
-## Tips and Tricks
+## 팁과 트릭
 
-### Monitoring Validation Loss vs. Training Loss
-If you're somewhat new to Machine Learning or Neural Networks it can take a bit of expertise to get good models. The most important quantity to keep track of is the difference between your training loss (printed during training) and the validation loss (printed once in a while when the RNN is run on the validation data (by default every 1000 iterations)). In particular:
+### 평가 손실 과 훈련 손실 모니터링
 
-- If your training loss is much lower than validation loss then this means the network might be **overfitting**. Solutions to this are to decrease your network size, or to increase dropout. For example you could try dropout of 0.5 and so on.
-- If your training/validation loss are about equal then your model is **underfitting**. Increase the size of your model (either number of layers or the raw number of neurons per layer)
+머신 러닝과 신경망을 처음 접한다면, 좋은 모델을 만들기까지는 전문지식을 꽤 많이 습득해야 한다. 정량화된 값 중 계속 파악해야 하는 수치는 훈련 손실(훈련 단계에서 출력)과 평가 손실(RNN이 평가 데이터에 대해 실행될 때마다 출력(기본값은 1000 이터레이션))이다. 무엇보다도:
 
-### Approximate number of parameters
+- 훈련 손실이 평가 손실보다 상당히 낮다면, 네트워크가 **과적합**되었다는 뜻이다. 해법은 네트워크 사이즈를 줄이거나, dropout을 높이는 것이다. 예를 들어 dropout을 0.5 등으로 설정해 볼 수 있다.
+- 훈련/평가 손실이 거의 변함이 없다면 모델이 **부적합**되었다는 뜻이다. 이 경우에는 모델의 사이즈를 늘린다(또는 레이어 개수 또는 레이어당 뉴런 개수를 늘린다).
 
-The two most important parameters that control the model are `rnn_size` and `num_layers`. I would advise that you always use `num_layers` of either 2/3. The `rnn_size` can be adjusted based on how much data you have. The two important quantities to keep track of here are:
+### 파라미터에 대한 근사치
 
-- The number of parameters in your model. This is printed when you start training.
-- The size of your dataset. 1MB file is approximately 1 million characters.
+모델을 제어하는 가장 중요한 두가지 파라미터는 `rnn_size`와 `num_layers`다. `num_layers`는 2 또는 3을 항상 사용할 것을 권한다. `rnn_size`은 학습할 데이터의 사이즈에 따라 달라진다. 눈여겨 봐야할 가장 중요한 2가지 측정값은
 
-These two should be about the same order of magnitude. It's a little tricky to tell. Here are some examples:
+- 모델 파라미터의 개수. 훈련을 시작할 때 출력된다
+- 데이터셋의 사이즈. 1MB는 대략 1M(백만)개의 문자에 해당한다.
 
-- I have a 100MB dataset and I'm using the default parameter settings (which currently print 150K parameters). My data size is significantly larger (100 mil >> 0.15 mil), so I expect to heavily underfit. I am thinking I can comfortably afford to make `rnn_size` larger.
-- I have a 10MB dataset and running a 10 million parameter model. I'm slightly nervous and I'm carefully monitoring my validation loss. If it's larger than my training loss then I may want to try to increase dropout a bit and see if that heps the validation loss.
+이들 2가지 수치는 거의 동일한 자리수를 가져야 한다. 말로 표현하기는 않은데, 아래의 예를 보자:
 
-### Best models strategy
+- 100MB 데이터셋이 있고, 기본 파라미터 설정(현재 버전에서는 150K 정도의 파라미터)을 사용한다고 해보자. 데이터의 사이즈가 훨씬 크므로(100M >> 0.15M), 모델은 상당히 부적합하게 된다. 이 경우에는 간단히 `rnn_size`를 더 크게 만들면 되겠다.
+- 10MB 데이터셋이 있고, 모델에서는 10M개의 파라미터를 사용한다고 해보자. 이 경우 조금 염려가 되므로 평가 손실을 주의깊게 살펴본다. 평가 손실이 훈련 손실보다 높다면, dropout을 조금 높여보고 평가 손실을 낯추는데 도움이 되는지 확인해 본다.
 
-The winning strategy to obtaining very good models (if you have the compute time) is to always err on making the network larger (as large as you're willing to wait for it to compute) and then try different dropout values (between 0,1). Whatever model has the best validation performance (the loss, written in the checkpoint filename, low is good) is the one you should use in the end.
+### 최고의 모델을 위한 전략
 
-It is very common in deep learning to run many different models with many different hyperparameter settings, and in the end take whatever checkpoint gave the best validation performance.
+상당히 좋은 모델을 만들기 위한 성공 전략은 네트워크를 가능한한 최대의 크기로 만들고(학습하는데 걸리는 시간을 감내할 수 있을정도로) 다양한 dropout 값을 설정(0과 1사이의 값으로)하면서 의도적으로 실패과정을 겪는 것이다. 이 과정에서 평가 성능이 가장 좋은 모델(체크포인트 파일명에 사용된 평가 손실이 가장 낮은)을 얻게 된다면, 최종에는 이 모델을 사용할 수 있게 된다.
 
-By the way, the size of your training and validation splits are also parameters. Make sure you have a decent amount of data in your validation set or otherwise the validation performance will be noisy and not very informative.
+딥러닝의 경우 다양한 하이퍼파리미터 설정을 사용하여 서로 다른 모델을 실행해보는 것이 일반적이며, 최종적으로 가장 높은 평가 성능을 가지는 체크포인트를 취하게 된다.
 
-## Additional Pointers and Acknowledgements
+덧붙여서, 훈련/평가 split 사이즈 또한 파라미터에 해당한다. 평가 데이터셋의 사이즈가 적절하도록 만들어야 하며, 그렇지 않을 경우 평가 성능은 신뢰할 수 없으며 그다지 의미있는 정보가 되지 못한다.
 
-This code was originally based on Oxford University Machine Learning class [practical 6](https://github.com/oxford-cs-ml-2015/practical6), which is in turn based on [learning to execute](https://github.com/wojciechz/learning_to_execute) code from Wojciech Zaremba. Chunks of it were also developed in collaboration with my labmate [Justin Johnson](http://cs.stanford.edu/people/jcjohns/).
+## 추가자료의 감사의 말
 
-To learn more about RNN language models I recommend looking at:
+이 코드는 원래 옥스포드 대학교 머신 러닝 수업 [practical 6](https://github.com/oxford-cs-ml-2015/practical6)을 기반으로 했으며, 해당 코드는 또한 Wojciech Zaremba의 [learning to execute](https://github.com/wojciechz/learning_to_execute) 코드를 기반으로 한다. 그리고 코드의 일부분은 나의 연구실 동료인 [Justin Johnson](http://cs.stanford.edu/people/jcjohns/)와 함께 작업했다.
 
-- [My recent talk](https://skillsmatter.com/skillscasts/6611-visualizing-and-understanding-recurrent-networks) on char-rnn
+RNN 언어 모델에 대한 더 많은 자료를 보고 싶다면, 아래 자료를 볼 것을 권한다.
+
+- [나의 최근 발표](https://skillsmatter.com/skillscasts/6611-visualizing-and-understanding-recurrent-networks) on char-rnn
 - [Generating Sequences With Recurrent Neural Networks](http://arxiv.org/abs/1308.0850) by Alex Graves
 - [Generating Text with Recurrent Neural Networks](http://www.cs.utoronto.ca/~ilya/pubs/2011/LANG-RNN.pdf) by Ilya Sutskever
 - [Tomas Mikolov's Thesis](http://www.fit.vutbr.cz/~imikolov/rnnlm/thesis.pdf)
 
-## License
+## 라이센스
 
 MIT
