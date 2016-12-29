@@ -158,7 +158,7 @@ $ th convert_gpu_cpu_checkpoint.lua cv/lm_lstm_epoch30.00_1.3950.t7
 
 덧붙여서, 훈련/평가 split 사이즈 또한 파라미터에 해당한다. 평가 데이터셋의 사이즈가 적절하도록 만들어야 하며, 그렇지 않을 경우 평가 성능은 신뢰할 수 없으며 그다지 의미있는 정보가 되지 못한다.
 
-## 추가자료의 감사의 말
+## 추가자료와 감사의 말
 
 이 코드는 원래 옥스포드 대학교 머신 러닝 수업 [practical 6](https://github.com/oxford-cs-ml-2015/practical6)을 기반으로 했으며, 해당 코드는 또한 Wojciech Zaremba의 [learning to execute](https://github.com/wojciechz/learning_to_execute) 코드를 기반으로 한다. 그리고 코드의 일부분은 나의 연구실 동료인 [Justin Johnson](http://cs.stanford.edu/people/jcjohns/)와 함께 작업했다.
 
